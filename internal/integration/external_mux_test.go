@@ -25,6 +25,14 @@ func (externalMuxHandler) GetSecret(_ context.Context, params api.GetSecretParam
 	return api.GetSecretOK{Data: strings.NewReader("secret:" + params.Name)}, nil
 }
 
+func (externalMuxHandler) GetUser(_ context.Context, params api.GetUserParams) (api.GetUserOK, error) {
+	return api.GetUserOK{Data: strings.NewReader("user:" + params.UserID)}, nil
+}
+
+func (externalMuxHandler) GetCode(_ context.Context, params api.GetCodeParams) (api.GetCodeOK, error) {
+	return api.GetCodeOK{Data: strings.NewReader("code:" + params.R2FA)}, nil
+}
+
 type externalMuxSecurity struct{}
 
 func (externalMuxSecurity) HandleApiKey(ctx context.Context, _ api.OperationName, t api.ApiKey) (context.Context, error) {
@@ -68,7 +76,7 @@ func TestExternalMux(t *testing.T) {
 		srv, _ := newExternalMux(t)
 
 		routes := srv.Routes()
-		require.Len(t, routes, 2)
+		require.Len(t, routes, 4)
 
 		pet := routes["getPet"]
 		require.Equal(t, "GET", pet.Method())
@@ -76,6 +84,29 @@ func TestExternalMux(t *testing.T) {
 		require.Equal(t, "/pets/{petId}", pet.PathPattern())
 		require.Equal(t, "getPet", pet.OperationID())
 		require.NotNil(t, pet.Handler)
+
+		user := routes["getUser"]
+		require.Equal(t, "/users/{user_id}/{$}", user.MuxPattern())
+		require.Equal(t, "/users/{user-id}/", user.PathPattern())
+
+		require.Equal(t, "/codes/{p2fa}", routes["getCode"].MuxPattern())
+	})
+	t.Run("SanitizedNames", func(t *testing.T) {
+		_, ts := newExternalMux(t)
+
+		code, body := externalMuxGet(t, ts.URL+"/users/bob/", nil)
+		require.Equal(t, http.StatusOK, code)
+		require.Equal(t, "user:bob", body)
+
+		code, body = externalMuxGet(t, ts.URL+"/codes/abc", nil)
+		require.Equal(t, http.StatusOK, code)
+		require.Equal(t, "code:abc", body)
+	})
+	t.Run("TrailingSlashMatchesExactly", func(t *testing.T) {
+		_, ts := newExternalMux(t)
+
+		code, _ := externalMuxGet(t, ts.URL+"/users/bob/extra", nil)
+		require.Equal(t, http.StatusNotFound, code)
 	})
 	t.Run("RoutesReturnsCopy", func(t *testing.T) {
 		srv, _ := newExternalMux(t)

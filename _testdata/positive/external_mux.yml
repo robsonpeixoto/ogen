@@ -51,3 +51,35 @@ paths:
             text/plain:
               schema:
                 type: string
+  /users/{user-id}/:
+    get:
+      operationId: getUser
+      parameters:
+        - name: user-id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+  /codes/{2fa}:
+    get:
+      operationId: getCode
+      parameters:
+        - name: 2fa
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string

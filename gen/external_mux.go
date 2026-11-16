@@ -42,6 +42,15 @@ func checkExternalMuxOperation(op *ir.Operation) error {
 				ServerExternalMux.Name, part.Param.Spec.Name)
 		}
 	}
+	names := op.MuxParamNames()
+	seen := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		if _, ok := seen[name]; ok {
+			return errors.Errorf("feature %q requires path parameters to have distinct wildcard names, %q is repeated",
+				ServerExternalMux.Name, name)
+		}
+		seen[name] = struct{}{}
+	}
 	return nil
 }
 
