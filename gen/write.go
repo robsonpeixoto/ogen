@@ -303,7 +303,7 @@ func (g *Generator) WriteSource(fs FileSystem, pkgName string) error {
 		RequestValidationEnabled:  features.Has(ClientRequestValidation),
 		ResponseValidationEnabled: features.Has(ServerResponseValidation),
 		EditorsEnabled:            features.Has(ClientEditors),
-		ExternalMuxEnabled:        features.Has(PathsServer) && features.Has(ServerExternalMux),
+		ExternalMuxEnabled:        features.Has(PathsServer) && features.Has(ServerExternalMux) && len(g.operations) > 0,
 		// Unused for now.
 		skipTestRegex: nil,
 	}

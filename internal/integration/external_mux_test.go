@@ -33,6 +33,14 @@ func (externalMuxHandler) GetCode(_ context.Context, params api.GetCodeParams) (
 	return api.GetCodeOK{Data: strings.NewReader("code:" + params.R2FA)}, nil
 }
 
+func (externalMuxHandler) GetHealth(context.Context) error {
+	return nil
+}
+
+func (externalMuxHandler) GetLang(_ context.Context, params api.GetLangParams) (api.GetLangOK, error) {
+	return api.GetLangOK{Data: strings.NewReader("lang:" + params.Caf)}, nil
+}
+
 type externalMuxSecurity struct{}
 
 func (externalMuxSecurity) HandleApiKey(ctx context.Context, _ api.OperationName, t api.ApiKey) (context.Context, error) {
@@ -76,7 +84,7 @@ func TestExternalMux(t *testing.T) {
 		srv, _ := newExternalMux(t)
 
 		routes := srv.Routes()
-		require.Len(t, routes, 4)
+		require.Len(t, routes, 6)
 
 		pet := routes["getPet"]
 		require.Equal(t, "GET", pet.Method())
@@ -90,6 +98,8 @@ func TestExternalMux(t *testing.T) {
 		require.Equal(t, "/users/{user-id}/", user.PathPattern())
 
 		require.Equal(t, "/codes/{p2fa}", routes["getCode"].MuxPattern())
+		require.Equal(t, "/langs/{caf_}", routes["getLang"].MuxPattern())
+		require.Equal(t, "/health", routes["getHealth"].MuxPattern())
 	})
 	t.Run("SanitizedNames", func(t *testing.T) {
 		_, ts := newExternalMux(t)
@@ -101,6 +111,13 @@ func TestExternalMux(t *testing.T) {
 		code, body = externalMuxGet(t, ts.URL+"/codes/abc", nil)
 		require.Equal(t, http.StatusOK, code)
 		require.Equal(t, "code:abc", body)
+
+		code, body = externalMuxGet(t, ts.URL+"/langs/pt", nil)
+		require.Equal(t, http.StatusOK, code)
+		require.Equal(t, "lang:pt", body)
+
+		code, _ = externalMuxGet(t, ts.URL+"/health", nil)
+		require.Equal(t, http.StatusOK, code)
 	})
 	t.Run("TrailingSlashMatchesExactly", func(t *testing.T) {
 		_, ts := newExternalMux(t)

@@ -13,6 +13,8 @@ package integration
 
 //go:generate go run ../../cmd/ogen -v --clean --config _config/security_reentrant.yml --target security_reentrant ../../_testdata/positive/security.json
 //go:generate go run ../../cmd/ogen -v --clean --config _config/external_mux.yml --target test_external_mux ../../_testdata/positive/external_mux.yml
+//go:generate go run ../../cmd/ogen -v --clean --config _config/external_mux.yml --target test_external_mux_webhooks ../../_testdata/positive/external_mux_webhooks.yml
+//go:generate go run ../../cmd/ogen -v --clean --config _config/external_mux.yml --target test_external_mux_no_params ../../_testdata/positive/external_mux_no_params.yml
 
 // Tests
 //

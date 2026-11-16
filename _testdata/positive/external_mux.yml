@@ -83,3 +83,25 @@ paths:
             text/plain:
               schema:
                 type: string
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '200':
+          description: OK
+  /langs/{café}:
+    get:
+      operationId: getLang
+      parameters:
+        - name: café
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string

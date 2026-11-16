@@ -748,6 +748,7 @@ for _, rt := range srv.Routes() {
 - The handler reads path parameters with `(*http.Request).PathValue`, using the names
   from `MuxPattern()`. It expects unescaped values, as `http.ServeMux` sets them.
 - The router owns the path prefix, 404 and 405 responses: the handler does not check them.
+  For example, `http.ServeMux` sends `HEAD` requests to `GET` patterns.
 - `ServeHTTP`, `FindRoute` and `FindPath` still work. The `Handler` of a route returned by
   `FindPath` uses the arguments that `FindPath` parsed.
 
@@ -764,8 +765,9 @@ r.Handle(rt.Method(), "/users/:user_id/", func(c *gin.Context) {
 ```
 
 With the feature enabled, generation fails if an operation has no `operationId`, if a
-path parameter does not fill a whole path segment (`/files/{name}.{ext}`), or if two path
-parameters of one operation get the same wildcard name.
+path parameter does not fill a whole path segment (`/files/{name}.{ext}`), if two path
+parameters of one operation get the same wildcard name, or if `http.ServeMux` would reject
+two patterns as conflicting (`GET /{org}/repos` and `GET /users/{id}`).
 
 # Links
 

@@ -164,18 +164,20 @@ func (s *Server) buildRoutes() map[string]Route {
 //
 // Its Handler uses the arguments parsed by FindPath instead of PathValue.
 func (s *Server) completeFoundRoute(r *Route) {
-	args := r.args
+	base, ok := s.routes[r.operationID]
+	if !ok {
+		return
+	}
+	r.method = base.method
+	r.muxPattern = base.muxPattern
 	switch r.name {
 	{{- range $op := $.Operations }}
 	case {{ $op.Name }}Operation:
-		r.method = {{ upper $op.Spec.HTTPMethod | quote }}
-		r.muxPattern = {{ quote $op.MuxPattern }}
+		{{- if $op.PathParamsCount }}
+		args := [{{ $op.PathParamsCount }}]string(r.args[:{{ $op.PathParamsCount }}])
+		{{- end }}
 		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			s.handle{{ $op.Name }}Request([{{ $op.PathParamsCount }}]string{
-			{{- range $i, $_ := times $op.PathParamsCount }}
-				args[{{ $i }}],
-			{{- end }}
-			}, false, w, req)
+			s.handle{{ $op.Name }}Request({{ if $op.PathParamsCount }}args{{ else }}[0]string{}{{ end }}, false, w, req)
 		})
 	{{- end }}
 	}

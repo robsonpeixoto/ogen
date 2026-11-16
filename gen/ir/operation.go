@@ -158,7 +158,7 @@ func (op Operation) HasSSEStreamResponse() bool {
 
 // MuxParamNames returns path parameter names as [http.ServeMux] wildcards, in path order.
 //
-// ServeMux requires wildcard names to be Go identifiers, so every byte
+// ServeMux requires wildcard names to be Go identifiers, so every character
 // outside [A-Za-z0-9_] becomes '_' and a leading digit gets a 'p' prefix.
 func (op Operation) MuxParamNames() (r []string) {
 	for _, p := range op.PathParts {
@@ -170,18 +170,18 @@ func (op Operation) MuxParamNames() (r []string) {
 }
 
 func muxParamName(name string) string {
-	b := []byte(name)
-	for i, c := range b {
+	r := []rune(name)
+	for i, c := range r {
 		switch {
 		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '_':
 		default:
-			b[i] = '_'
+			r[i] = '_'
 		}
 	}
-	if len(b) == 0 || (b[0] >= '0' && b[0] <= '9') {
-		return "p" + string(b)
+	if len(r) == 0 || (r[0] >= '0' && r[0] <= '9') {
+		return "p" + string(r)
 	}
-	return string(b)
+	return string(r)
 }
 
 // MuxPattern returns operation path as [http.ServeMux] pattern, without method.

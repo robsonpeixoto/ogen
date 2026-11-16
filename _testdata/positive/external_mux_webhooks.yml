@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: External mux with webhooks only
+  version: 1.0.0
+webhooks:
+  petCreated:
+    post:
+      operationId: petCreated
+      responses:
+        '200':
+          description: OK
