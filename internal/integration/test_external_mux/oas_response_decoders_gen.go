@@ -14,6 +14,31 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+func decodeGetCodeResponse(resp *http.Response) (res GetCodeOK, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "text/plain":
+			reader := resp.Body
+			b, err := io.ReadAll(reader)
+			if err != nil {
+				return res, err
+			}
+
+			response := GetCodeOK{Data: bytes.NewReader(b)}
+			return response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
 func decodeGetPetResponse(resp *http.Response) (res *Pet, _ error) {
 	switch resp.StatusCode {
 	case 200:
@@ -72,6 +97,31 @@ func decodeGetSecretResponse(resp *http.Response) (res GetSecretOK, _ error) {
 			}
 
 			response := GetSecretOK{Data: bytes.NewReader(b)}
+			return response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
+func decodeGetUserResponse(resp *http.Response) (res GetUserOK, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "text/plain":
+			reader := resp.Body
+			b, err := io.ReadAll(reader)
+			if err != nil {
+				return res, err
+			}
+
+			response := GetUserOK{Data: bytes.NewReader(b)}
 			return response, nil
 		default:
 			return res, validate.InvalidContentType(ct)

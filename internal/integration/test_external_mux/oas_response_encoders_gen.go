@@ -11,6 +11,21 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+func encodeGetCodeResponse(response GetCodeOK, w http.ResponseWriter, span trace.Span) error {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(200)
+
+	writer := w
+	if closer, ok := response.Data.(io.Closer); ok {
+		defer closer.Close()
+	}
+	if _, err := io.Copy(writer, response); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeGetPetResponse(response *Pet, w http.ResponseWriter, span trace.Span) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -25,6 +40,21 @@ func encodeGetPetResponse(response *Pet, w http.ResponseWriter, span trace.Span)
 }
 
 func encodeGetSecretResponse(response GetSecretOK, w http.ResponseWriter, span trace.Span) error {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(200)
+
+	writer := w
+	if closer, ok := response.Data.(io.Closer); ok {
+		defer closer.Close()
+	}
+	if _, err := io.Copy(writer, response); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeGetUserResponse(response GetUserOK, w http.ResponseWriter, span trace.Span) error {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 

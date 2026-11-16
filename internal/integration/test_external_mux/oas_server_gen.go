@@ -8,6 +8,10 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// GetCode implements getCode operation.
+	//
+	// GET /codes/{2fa}
+	GetCode(ctx context.Context, params GetCodeParams) (GetCodeOK, error)
 	// GetPet implements getPet operation.
 	//
 	// GET /pets/{petId}
@@ -16,6 +20,10 @@ type Handler interface {
 	//
 	// GET /secret/{name}
 	GetSecret(ctx context.Context, params GetSecretParams) (GetSecretOK, error)
+	// GetUser implements getUser operation.
+	//
+	// GET /users/{user-id}/
+	GetUser(ctx context.Context, params GetUserParams) (GetUserOK, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

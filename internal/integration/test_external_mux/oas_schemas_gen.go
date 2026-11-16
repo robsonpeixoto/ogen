@@ -31,6 +31,20 @@ func (s *ApiKey) SetRoles(val []string) {
 	s.Roles = val
 }
 
+type GetCodeOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetCodeOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
 type GetSecretOK struct {
 	Data io.Reader
 }
@@ -39,6 +53,20 @@ type GetSecretOK struct {
 //
 // Kept to satisfy the io.Reader interface.
 func (s GetSecretOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type GetUserOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetUserOK) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}

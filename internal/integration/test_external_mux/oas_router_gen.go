@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	rn5AllowedHeaders = map[string]string{
+	rn7AllowedHeaders = map[string]string{
 		"GET": "X-Api-Key",
 	}
 )
@@ -68,6 +68,42 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
+			case 'c': // Prefix: "codes/"
+
+				if l := len("codes/"); len(elem) >= l && elem[0:l] == "codes/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "2fa"
+				// Leaf parameter, slashes are prohibited
+				idx := strings.IndexByte(elem, '/')
+				if idx >= 0 {
+					break
+				}
+				args[0] = elem
+				elem = ""
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch r.Method {
+					case "GET":
+						s.handleGetCodeRequest([1]string{
+							args[0],
+						}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, notAllowedParams{
+							allowedMethods: "GET",
+							allowedHeaders: nil,
+							acceptPost:     "",
+							acceptPatch:    "",
+						})
+					}
+
+					return
+				}
+
 			case 'p': // Prefix: "pets/"
 
 				if l := len("pets/"); len(elem) >= l && elem[0:l] == "pets/" {
@@ -131,13 +167,63 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET",
-							allowedHeaders: rn5AllowedHeaders,
+							allowedHeaders: rn7AllowedHeaders,
 							acceptPost:     "",
 							acceptPatch:    "",
 						})
 					}
 
 					return
+				}
+
+			case 'u': // Prefix: "users/"
+
+				if l := len("users/"); len(elem) >= l && elem[0:l] == "users/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "user-id"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleGetUserRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET",
+								allowedHeaders: nil,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
 				}
 
 			}
@@ -221,6 +307,20 @@ func (s *Server) Routes() map[string]Route {
 
 func (s *Server) buildRoutes() map[string]Route {
 	return map[string]Route{
+		"getCode": {
+			name:           GetCodeOperation,
+			summary:        "",
+			operationID:    "getCode",
+			operationGroup: "",
+			pathPattern:    "/codes/{2fa}",
+			method:         "GET",
+			muxPattern:     "/codes/{p2fa}",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.handleGetCodeRequest([1]string{
+					r.PathValue("p2fa"),
+				}, false, w, r)
+			}),
+		},
 		"getPet": {
 			name:           GetPetOperation,
 			summary:        "",
@@ -246,6 +346,20 @@ func (s *Server) buildRoutes() map[string]Route {
 			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				s.handleGetSecretRequest([1]string{
 					r.PathValue("name"),
+				}, false, w, r)
+			}),
+		},
+		"getUser": {
+			name:           GetUserOperation,
+			summary:        "",
+			operationID:    "getUser",
+			operationGroup: "",
+			pathPattern:    "/users/{user-id}/",
+			method:         "GET",
+			muxPattern:     "/users/{user_id}/{$}",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.handleGetUserRequest([1]string{
+					r.PathValue("user_id"),
 				}, false, w, r)
 			}),
 		},
@@ -302,6 +416,40 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
+			case 'c': // Prefix: "codes/"
+
+				if l := len("codes/"); len(elem) >= l && elem[0:l] == "codes/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "2fa"
+				// Leaf parameter, slashes are prohibited
+				idx := strings.IndexByte(elem, '/')
+				if idx >= 0 {
+					break
+				}
+				args[0] = elem
+				elem = ""
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch method {
+					case "GET":
+						r.name = GetCodeOperation
+						r.summary = ""
+						r.operationID = "getCode"
+						r.operationGroup = ""
+						r.pathPattern = "/codes/{2fa}"
+						r.args = args
+						r.count = 1
+						return r, true
+					default:
+						return
+					}
+				}
+
 			case 'p': // Prefix: "pets/"
 
 				if l := len("pets/"); len(elem) >= l && elem[0:l] == "pets/" {
@@ -368,6 +516,54 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					default:
 						return
 					}
+				}
+
+			case 'u': // Prefix: "users/"
+
+				if l := len("users/"); len(elem) >= l && elem[0:l] == "users/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "user-id"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = GetUserOperation
+							r.summary = ""
+							r.operationID = "getUser"
+							r.operationGroup = ""
+							r.pathPattern = "/users/{user-id}/"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			}

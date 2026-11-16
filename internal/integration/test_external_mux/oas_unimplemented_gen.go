@@ -13,6 +13,13 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// GetCode implements getCode operation.
+//
+// GET /codes/{2fa}
+func (UnimplementedHandler) GetCode(ctx context.Context, params GetCodeParams) (r GetCodeOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPet implements getPet operation.
 //
 // GET /pets/{petId}
@@ -24,5 +31,12 @@ func (UnimplementedHandler) GetPet(ctx context.Context, params GetPetParams) (r 
 //
 // GET /secret/{name}
 func (UnimplementedHandler) GetSecret(ctx context.Context, params GetSecretParams) (r GetSecretOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// GetUser implements getUser operation.
+//
+// GET /users/{user-id}/
+func (UnimplementedHandler) GetUser(ctx context.Context, params GetUserParams) (r GetUserOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
