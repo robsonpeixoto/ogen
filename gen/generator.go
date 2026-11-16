@@ -145,6 +145,9 @@ func NewGenerator(spec *ogen.Spec, opts Options) (*Generator, error) {
 	if err := g.makeIR(api); err != nil {
 		return nil, errors.Wrap(err, "make ir")
 	}
+	if err := g.checkExternalMux(); err != nil {
+		return nil, errors.Wrap(err, "external mux")
+	}
 
 	if err := g.route(); err != nil {
 		return nil, &ErrBuildRouter{err: err}

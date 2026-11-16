@@ -300,6 +300,11 @@ func TestNegative(t *testing.T) {
 		if strings.Contains(dir, "convenient_errors") {
 			require.NoError(t, opt.Generator.ConvenientErrors.Set("on"))
 		}
+		if strings.Contains(dir, "external_mux") {
+			opt.Generator.Features = &gen.FeatureOptions{
+				Enable: gen.FeatureSet{gen.ServerExternalMux.Name: {}},
+			}
+		}
 
 		_, err = gen.NewGenerator(spec, opt)
 		a.Error(err)

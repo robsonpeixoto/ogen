@@ -1,0 +1,22 @@
+openapi: 3.0.3
+info:
+  title: Parameter that does not span a whole path segment
+  version: 1.0.0
+paths:
+  /files/{name}.{ext}:
+    get:
+      operationId: getFile
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ext
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
