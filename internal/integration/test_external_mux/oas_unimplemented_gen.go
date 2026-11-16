@@ -20,6 +20,20 @@ func (UnimplementedHandler) GetCode(ctx context.Context, params GetCodeParams) (
 	return r, ht.ErrNotImplemented
 }
 
+// GetHealth implements getHealth operation.
+//
+// GET /health
+func (UnimplementedHandler) GetHealth(ctx context.Context) error {
+	return ht.ErrNotImplemented
+}
+
+// GetLang implements getLang operation.
+//
+// GET /langs/{café}
+func (UnimplementedHandler) GetLang(ctx context.Context, params GetLangParams) (r GetLangOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetPet implements getPet operation.
 //
 // GET /pets/{petId}

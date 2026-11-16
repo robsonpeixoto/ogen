@@ -45,6 +45,23 @@ func (s GetCodeOK) Read(p []byte) (n int, err error) {
 	return s.Data.Read(p)
 }
 
+// GetHealthOK is response for GetHealth operation.
+type GetHealthOK struct{}
+
+type GetLangOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetLangOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
 type GetSecretOK struct {
 	Data io.Reader
 }

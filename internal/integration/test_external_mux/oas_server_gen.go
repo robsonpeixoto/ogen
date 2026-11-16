@@ -12,6 +12,14 @@ type Handler interface {
 	//
 	// GET /codes/{2fa}
 	GetCode(ctx context.Context, params GetCodeParams) (GetCodeOK, error)
+	// GetHealth implements getHealth operation.
+	//
+	// GET /health
+	GetHealth(ctx context.Context) error
+	// GetLang implements getLang operation.
+	//
+	// GET /langs/{café}
+	GetLang(ctx context.Context, params GetLangParams) (GetLangOK, error)
 	// GetPet implements getPet operation.
 	//
 	// GET /pets/{petId}

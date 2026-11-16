@@ -39,6 +39,40 @@ func decodeGetCodeResponse(resp *http.Response) (res GetCodeOK, _ error) {
 	return res, validate.UnexpectedStatusCodeWithResponse(resp)
 }
 
+func decodeGetHealthResponse(resp *http.Response) (res *GetHealthOK, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		return &GetHealthOK{}, nil
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
+func decodeGetLangResponse(resp *http.Response) (res GetLangOK, _ error) {
+	switch resp.StatusCode {
+	case 200:
+		// Code 200.
+		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if err != nil {
+			return res, errors.Wrap(err, "parse media type")
+		}
+		switch {
+		case ct == "text/plain":
+			reader := resp.Body
+			b, err := io.ReadAll(reader)
+			if err != nil {
+				return res, err
+			}
+
+			response := GetLangOK{Data: bytes.NewReader(b)}
+			return response, nil
+		default:
+			return res, validate.InvalidContentType(ct)
+		}
+	}
+	return res, validate.UnexpectedStatusCodeWithResponse(resp)
+}
+
 func decodeGetPetResponse(resp *http.Response) (res *Pet, _ error) {
 	switch resp.StatusCode {
 	case 200:

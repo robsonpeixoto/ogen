@@ -79,6 +79,71 @@ func decodeGetCodeParams(args [1]string, argsEscaped bool, r *http.Request) (par
 	return params, nil
 }
 
+// GetLangParams is parameters of getLang operation.
+type GetLangParams struct {
+	Caf string
+}
+
+func unpackGetLangParams(packed middleware.Parameters) (params GetLangParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "café",
+			In:   "path",
+		}
+		params.Caf = packed[key].(string)
+	}
+	return params
+}
+
+func decodeGetLangParams(args [1]string, argsEscaped bool, r *http.Request) (params GetLangParams, _ error) {
+	// Decode path: café.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "café",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.Caf = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "café",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetPetParams is parameters of getPet operation.
 type GetPetParams struct {
 	PetId int

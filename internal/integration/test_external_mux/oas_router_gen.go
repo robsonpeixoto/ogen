@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	rn7AllowedHeaders = map[string]string{
+	rn10AllowedHeaders = map[string]string{
 		"GET": "X-Api-Key",
 	}
 )
@@ -104,6 +104,67 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
+			case 'h': // Prefix: "health"
+
+				if l := len("health"); len(elem) >= l && elem[0:l] == "health" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch r.Method {
+					case "GET":
+						s.handleGetHealthRequest([0]string{}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, notAllowedParams{
+							allowedMethods: "GET",
+							allowedHeaders: nil,
+							acceptPost:     "",
+							acceptPatch:    "",
+						})
+					}
+
+					return
+				}
+
+			case 'l': // Prefix: "langs/"
+
+				if l := len("langs/"); len(elem) >= l && elem[0:l] == "langs/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "café"
+				// Leaf parameter, slashes are prohibited
+				idx := strings.IndexByte(elem, '/')
+				if idx >= 0 {
+					break
+				}
+				args[0] = elem
+				elem = ""
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch r.Method {
+					case "GET":
+						s.handleGetLangRequest([1]string{
+							args[0],
+						}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, notAllowedParams{
+							allowedMethods: "GET",
+							allowedHeaders: nil,
+							acceptPost:     "",
+							acceptPatch:    "",
+						})
+					}
+
+					return
+				}
+
 			case 'p': // Prefix: "pets/"
 
 				if l := len("pets/"); len(elem) >= l && elem[0:l] == "pets/" {
@@ -167,7 +228,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET",
-							allowedHeaders: rn7AllowedHeaders,
+							allowedHeaders: rn10AllowedHeaders,
 							acceptPost:     "",
 							acceptPatch:    "",
 						})
@@ -321,6 +382,32 @@ func (s *Server) buildRoutes() map[string]Route {
 				}, false, w, r)
 			}),
 		},
+		"getHealth": {
+			name:           GetHealthOperation,
+			summary:        "",
+			operationID:    "getHealth",
+			operationGroup: "",
+			pathPattern:    "/health",
+			method:         "GET",
+			muxPattern:     "/health",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.handleGetHealthRequest([0]string{}, false, w, r)
+			}),
+		},
+		"getLang": {
+			name:           GetLangOperation,
+			summary:        "",
+			operationID:    "getLang",
+			operationGroup: "",
+			pathPattern:    "/langs/{café}",
+			method:         "GET",
+			muxPattern:     "/langs/{caf_}",
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.handleGetLangRequest([1]string{
+					r.PathValue("caf_"),
+				}, false, w, r)
+			}),
+		},
 		"getPet": {
 			name:           GetPetOperation,
 			summary:        "",
@@ -370,39 +457,41 @@ func (s *Server) buildRoutes() map[string]Route {
 //
 // Its Handler uses the arguments parsed by FindPath instead of PathValue.
 func (s *Server) completeFoundRoute(r *Route) {
-	args := r.args
+	base, ok := s.routes[r.operationID]
+	if !ok {
+		return
+	}
+	r.method = base.method
+	r.muxPattern = base.muxPattern
 	switch r.name {
 	case GetCodeOperation:
-		r.method = "GET"
-		r.muxPattern = "/codes/{p2fa}"
+		args := [1]string(r.args[:1])
 		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			s.handleGetCodeRequest([1]string{
-				args[0],
-			}, false, w, req)
+			s.handleGetCodeRequest(args, false, w, req)
+		})
+	case GetHealthOperation:
+		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			s.handleGetHealthRequest([0]string{}, false, w, req)
+		})
+	case GetLangOperation:
+		args := [1]string(r.args[:1])
+		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			s.handleGetLangRequest(args, false, w, req)
 		})
 	case GetPetOperation:
-		r.method = "GET"
-		r.muxPattern = "/pets/{petId}"
+		args := [1]string(r.args[:1])
 		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			s.handleGetPetRequest([1]string{
-				args[0],
-			}, false, w, req)
+			s.handleGetPetRequest(args, false, w, req)
 		})
 	case GetSecretOperation:
-		r.method = "GET"
-		r.muxPattern = "/secret/{name}"
+		args := [1]string(r.args[:1])
 		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			s.handleGetSecretRequest([1]string{
-				args[0],
-			}, false, w, req)
+			s.handleGetSecretRequest(args, false, w, req)
 		})
 	case GetUserOperation:
-		r.method = "GET"
-		r.muxPattern = "/users/{user_id}/{$}"
+		args := [1]string(r.args[:1])
 		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			s.handleGetUserRequest([1]string{
-				args[0],
-			}, false, w, req)
+			s.handleGetUserRequest(args, false, w, req)
 		})
 	}
 }
@@ -485,6 +574,65 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						r.operationID = "getCode"
 						r.operationGroup = ""
 						r.pathPattern = "/codes/{2fa}"
+						r.args = args
+						r.count = 1
+						return r, true
+					default:
+						return
+					}
+				}
+
+			case 'h': // Prefix: "health"
+
+				if l := len("health"); len(elem) >= l && elem[0:l] == "health" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch method {
+					case "GET":
+						r.name = GetHealthOperation
+						r.summary = ""
+						r.operationID = "getHealth"
+						r.operationGroup = ""
+						r.pathPattern = "/health"
+						r.args = args
+						r.count = 0
+						return r, true
+					default:
+						return
+					}
+				}
+
+			case 'l': // Prefix: "langs/"
+
+				if l := len("langs/"); len(elem) >= l && elem[0:l] == "langs/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "café"
+				// Leaf parameter, slashes are prohibited
+				idx := strings.IndexByte(elem, '/')
+				if idx >= 0 {
+					break
+				}
+				args[0] = elem
+				elem = ""
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch method {
+					case "GET":
+						r.name = GetLangOperation
+						r.summary = ""
+						r.operationID = "getLang"
+						r.operationGroup = ""
+						r.pathPattern = "/langs/{café}"
 						r.args = args
 						r.count = 1
 						return r, true
