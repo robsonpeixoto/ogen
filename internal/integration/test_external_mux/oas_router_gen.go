@@ -366,6 +366,47 @@ func (s *Server) buildRoutes() map[string]Route {
 	}
 }
 
+// completeFoundRoute sets the external mux fields of a route found by FindPath.
+//
+// Its Handler uses the arguments parsed by FindPath instead of PathValue.
+func (s *Server) completeFoundRoute(r *Route) {
+	args := r.args
+	switch r.name {
+	case GetCodeOperation:
+		r.method = "GET"
+		r.muxPattern = "/codes/{p2fa}"
+		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			s.handleGetCodeRequest([1]string{
+				args[0],
+			}, false, w, req)
+		})
+	case GetPetOperation:
+		r.method = "GET"
+		r.muxPattern = "/pets/{petId}"
+		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			s.handleGetPetRequest([1]string{
+				args[0],
+			}, false, w, req)
+		})
+	case GetSecretOperation:
+		r.method = "GET"
+		r.muxPattern = "/secret/{name}"
+		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			s.handleGetSecretRequest([1]string{
+				args[0],
+			}, false, w, req)
+		})
+	case GetUserOperation:
+		r.method = "GET"
+		r.muxPattern = "/users/{user_id}/{$}"
+		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			s.handleGetUserRequest([1]string{
+				args[0],
+			}, false, w, req)
+		})
+	}
+}
+
 // FindRoute finds Route for given method and path.
 //
 // Note: this method does not unescape path or handle reserved characters in path properly. Use FindPath instead.
@@ -379,6 +420,8 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 		elem = u.Path
 		args = r.args
 	)
+	// Deferred first, so it runs after args are unescaped below.
+	defer s.completeFoundRoute(&r)
 	if rawPath := u.RawPath; rawPath != "" {
 		if normalized, ok := uri.NormalizeEscapedPath(rawPath); ok {
 			elem = normalized
