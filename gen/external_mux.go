@@ -1,6 +1,9 @@
 package gen
 
 import (
+	"fmt"
+	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/go-faster/errors"
@@ -23,7 +26,7 @@ func (g *Generator) checkExternalMux() error {
 			))
 		}
 	}
-	return nil
+	return checkExternalMuxConflicts(g.operations)
 }
 
 func checkExternalMuxOperation(op *ir.Operation) error {
@@ -64,4 +67,27 @@ func wrapOperationLocation(op *ir.Operation, err error) error {
 		Pos:  pos,
 		Err:  err,
 	}
+}
+
+// muxRegisteredAt matches the generator source location that ServeMux
+// adds to conflict panics, which is noise for spec authors.
+var muxRegisteredAt = regexp.MustCompile(` \(registered at [^)]*\)`)
+
+// checkExternalMuxConflicts registers every route on a throwaway
+// http.ServeMux, so specs that ServeMux would reject at startup fail at
+// generation instead, using ServeMux's own conflict rules.
+func checkExternalMuxConflicts(ops []*ir.Operation) (rerr error) {
+	mux := http.NewServeMux()
+	var current *ir.Operation
+	defer func() {
+		if r := recover(); r != nil {
+			msg := muxRegisteredAt.ReplaceAllString(fmt.Sprint(r), "")
+			rerr = wrapOperationLocation(current, errors.Errorf("feature %q: %s", ServerExternalMux.Name, msg))
+		}
+	}()
+	for _, op := range ops {
+		current = op
+		mux.Handle(strings.ToUpper(op.Spec.HTTPMethod)+" "+op.MuxPattern(), http.NotFoundHandler())
+	}
+	return nil
 }

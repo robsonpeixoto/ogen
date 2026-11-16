@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info:
+  title: Patterns that http.ServeMux rejects as conflicting
+  version: 1.0.0
+paths:
+  /{org}/repos:
+    get:
+      operationId: listRepos
+      parameters:
+        - name: org
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /users/{id}:
+    get:
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK

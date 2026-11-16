@@ -308,6 +308,9 @@ func TestNegative(t *testing.T) {
 
 		_, err = gen.NewGenerator(spec, opt)
 		a.Error(err)
+		if strings.Contains(dir, "external_mux") {
+			a.ErrorContains(err, "external mux")
+		}
 
 		var buf strings.Builder
 		if location.PrintPrettyError(&buf, true, err) {
