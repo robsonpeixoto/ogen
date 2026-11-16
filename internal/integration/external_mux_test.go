@@ -143,6 +143,29 @@ func TestExternalMux(t *testing.T) {
 		code, _ := externalMuxGet(t, ts.URL+"/secret/x", http.Header{"X-Api-Key": {"bad"}})
 		require.Equal(t, http.StatusUnauthorized, code)
 	})
+	t.Run("FindPathHandler", func(t *testing.T) {
+		srv, _ := newExternalMux(t)
+
+		for _, tt := range []struct {
+			target string
+			body   string
+		}{
+			{"/users/bob/", "user:bob"},
+			{"/secret/a%2Fb%20c", "secret:a/b c"},
+		} {
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tt.target, http.NoBody)
+			req.Header.Set("X-Api-Key", "good")
+
+			rt, ok := srv.FindPath(req.Method, req.URL)
+			require.True(t, ok, tt.target)
+			require.NotNil(t, rt.Handler, tt.target)
+
+			rec := httptest.NewRecorder()
+			rt.Handler.ServeHTTP(rec, req)
+			require.Equal(t, http.StatusOK, rec.Code, tt.target)
+			require.Equal(t, tt.body, rec.Body.String(), tt.target)
+		}
+	})
 	t.Run("RouterOwnsNotFound", func(t *testing.T) {
 		_, ts := newExternalMux(t)
 

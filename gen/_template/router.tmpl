@@ -159,6 +159,27 @@ func (s *Server) buildRoutes() map[string]Route {
 		{{- end }}
 	}
 }
+
+// completeFoundRoute sets the external mux fields of a route found by FindPath.
+//
+// Its Handler uses the arguments parsed by FindPath instead of PathValue.
+func (s *Server) completeFoundRoute(r *Route) {
+	args := r.args
+	switch r.name {
+	{{- range $op := $.Operations }}
+	case {{ $op.Name }}Operation:
+		r.method = {{ upper $op.Spec.HTTPMethod | quote }}
+		r.muxPattern = {{ quote $op.MuxPattern }}
+		r.Handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			s.handle{{ $op.Name }}Request([{{ $op.PathParamsCount }}]string{
+			{{- range $i, $_ := times $op.PathParamsCount }}
+				args[{{ $i }}],
+			{{- end }}
+			}, false, w, req)
+		})
+	{{- end }}
+	}
+}
 {{- end }}
 
 // FindRoute finds Route for given method and path.
@@ -174,6 +195,10 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 		elem = u.Path
 		args = r.args
 	)
+	{{- if $.ExternalMuxEnabled }}
+	// Deferred first, so it runs after args are unescaped below.
+	defer s.completeFoundRoute(&r)
+	{{- end }}
 	if rawPath := u.RawPath; rawPath != "" {
 		if normalized, ok := uri.NormalizeEscapedPath(rawPath); ok {
 			elem = normalized
