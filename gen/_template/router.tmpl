@@ -71,6 +71,19 @@ type Route struct {
 	pathPattern string
 	count int
 	args [{{ $router.MaxParametersCount }}]string
+	{{- if $.ExternalMuxEnabled }}
+	method string
+	muxPattern string
+
+	// Handler serves the operation.
+	//
+	// Handlers from Server.Routes read path parameters with
+	// (*http.Request).PathValue, so the router must set already
+	// unescaped values under the names used in MuxPattern.
+	// Routing concerns (prefix, not found, method not allowed) belong
+	// to the router.
+	Handler http.Handler
+	{{- end }}
 }
 
 // Name returns ogen operation name.
@@ -104,6 +117,49 @@ func (r Route) PathPattern() string {
 func (r Route) Args() []string {
 	return r.args[:r.count]
 }
+{{- if $.ExternalMuxEnabled }}
+
+// Method returns HTTP method in upper case.
+func (r Route) Method() string {
+	return r.method
+}
+
+// MuxPattern returns path pattern compatible with http.ServeMux,
+// without method and with wildcard names that are valid Go identifiers.
+func (r Route) MuxPattern() string {
+	return r.muxPattern
+}
+
+// Routes returns operation routes keyed by OpenAPI operationId.
+//
+// The returned map is a copy, so changing it does not affect the Server.
+func (s *Server) Routes() map[string]Route {
+	return maps.Clone(s.routes)
+}
+
+func (s *Server) buildRoutes() map[string]Route {
+	return map[string]Route{
+		{{- range $op := $.Operations }}
+		{{ quote $op.Spec.OperationID }}: {
+			name: {{ $op.Name }}Operation,
+			summary: {{ quote $op.Summary }},
+			operationID: {{ quote $op.Spec.OperationID }},
+			operationGroup: {{ quote $op.OperationGroup }},
+			pathPattern: {{ quote $op.Spec.Path.String }},
+			method: {{ upper $op.Spec.HTTPMethod | quote }},
+			muxPattern: {{ quote $op.MuxPattern }},
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				s.handle{{ $op.Name }}Request([{{ $op.PathParamsCount }}]string{
+				{{- range $name := $op.MuxParamNames }}
+					r.PathValue({{ quote $name }}),
+				{{- end }}
+				}, false, w, r)
+			}),
+		},
+		{{- end }}
+	}
+}
+{{- end }}
 
 // FindRoute finds Route for given method and path.
 //

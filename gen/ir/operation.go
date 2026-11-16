@@ -156,6 +156,34 @@ func (op Operation) HasSSEStreamResponse() bool {
 	return checkResponse(op.Responses.Default)
 }
 
+// MuxParamNames returns path parameter names as [http.ServeMux] wildcards, in path order.
+func (op Operation) MuxParamNames() (r []string) {
+	for _, p := range op.PathParts {
+		if p.Param != nil {
+			r = append(r, p.Param.Spec.Name)
+		}
+	}
+	return r
+}
+
+// MuxPattern returns operation path as [http.ServeMux] pattern, without method.
+func (op Operation) MuxPattern() string {
+	var (
+		b   strings.Builder
+		idx int
+	)
+	names := op.MuxParamNames()
+	for _, p := range op.PathParts {
+		if p.Param == nil {
+			b.WriteString(p.Raw)
+			continue
+		}
+		b.WriteString("{" + names[idx] + "}")
+		idx++
+	}
+	return b.String()
+}
+
 type PathPart struct {
 	Raw   string
 	Param *Parameter

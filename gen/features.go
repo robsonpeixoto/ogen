@@ -129,6 +129,10 @@ var (
 		"server/response/validation",
 		`Enables validation of server responses`,
 	}
+	ServerExternalMux = Feature{
+		"server/external_mux",
+		`Enables per-operation handlers for external routers via Server.Routes`,
+	}
 	OgenOtel = Feature{
 		"ogen/otel",
 		`Enables OpenTelemetry integration`,
@@ -169,6 +173,7 @@ var AllFeatures = []Feature{
 	ClientRequestValidation,
 	ClientEditors,
 	ServerResponseValidation,
+	ServerExternalMux,
 	OgenOtel,
 	OgenUnimplemented,
 	DebugExampleTests,

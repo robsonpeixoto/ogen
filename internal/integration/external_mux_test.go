@@ -1,0 +1,121 @@
+package integration_test
+
+import (
+	"context"
+	"io"
+	"maps"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/go-faster/errors"
+	"github.com/stretchr/testify/require"
+
+	api "github.com/ogen-go/ogen/internal/integration/test_external_mux"
+)
+
+type externalMuxHandler struct{}
+
+func (externalMuxHandler) GetPet(_ context.Context, params api.GetPetParams) (*api.Pet, error) {
+	return &api.Pet{ID: params.PetId}, nil
+}
+
+func (externalMuxHandler) GetSecret(_ context.Context, params api.GetSecretParams) (api.GetSecretOK, error) {
+	return api.GetSecretOK{Data: strings.NewReader("secret:" + params.Name)}, nil
+}
+
+type externalMuxSecurity struct{}
+
+func (externalMuxSecurity) HandleApiKey(ctx context.Context, _ api.OperationName, t api.ApiKey) (context.Context, error) {
+	if t.APIKey != "good" {
+		return nil, errors.New("bad key")
+	}
+	return ctx, nil
+}
+
+func newExternalMux(t *testing.T) (*api.Server, *httptest.Server) {
+	t.Helper()
+
+	srv, err := api.NewServer(externalMuxHandler{}, externalMuxSecurity{})
+	require.NoError(t, err)
+
+	mux := http.NewServeMux()
+	for _, rt := range srv.Routes() {
+		mux.Handle(rt.Method()+" "+rt.MuxPattern(), rt.Handler)
+	}
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+	return srv, ts
+}
+
+func externalMuxGet(t *testing.T, url string, header http.Header) (int, string) {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
+	require.NoError(t, err)
+	maps.Copy(req.Header, header)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	return resp.StatusCode, string(body)
+}
+
+func TestExternalMux(t *testing.T) {
+	t.Run("Routes", func(t *testing.T) {
+		srv, _ := newExternalMux(t)
+
+		routes := srv.Routes()
+		require.Len(t, routes, 2)
+
+		pet := routes["getPet"]
+		require.Equal(t, "GET", pet.Method())
+		require.Equal(t, "/pets/{petId}", pet.MuxPattern())
+		require.Equal(t, "/pets/{petId}", pet.PathPattern())
+		require.Equal(t, "getPet", pet.OperationID())
+		require.NotNil(t, pet.Handler)
+	})
+	t.Run("RoutesReturnsCopy", func(t *testing.T) {
+		srv, _ := newExternalMux(t)
+
+		delete(srv.Routes(), "getPet")
+		require.Contains(t, srv.Routes(), "getPet")
+	})
+	t.Run("PathValue", func(t *testing.T) {
+		_, ts := newExternalMux(t)
+
+		code, body := externalMuxGet(t, ts.URL+"/pets/42", nil)
+		require.Equal(t, http.StatusOK, code)
+		require.JSONEq(t, `{"id":42}`, body)
+	})
+	t.Run("Escaped", func(t *testing.T) {
+		_, ts := newExternalMux(t)
+
+		code, body := externalMuxGet(t, ts.URL+"/secret/a%2Fb%20c", http.Header{"X-Api-Key": {"good"}})
+		require.Equal(t, http.StatusOK, code)
+		require.Equal(t, "secret:a/b c", body)
+	})
+	t.Run("Validation", func(t *testing.T) {
+		_, ts := newExternalMux(t)
+
+		code, _ := externalMuxGet(t, ts.URL+"/pets/0", nil)
+		require.Equal(t, http.StatusBadRequest, code)
+
+		code, _ = externalMuxGet(t, ts.URL+"/pets/abc", nil)
+		require.Equal(t, http.StatusBadRequest, code)
+	})
+	t.Run("Security", func(t *testing.T) {
+		_, ts := newExternalMux(t)
+
+		code, _ := externalMuxGet(t, ts.URL+"/secret/x", http.Header{"X-Api-Key": {"bad"}})
+		require.Equal(t, http.StatusUnauthorized, code)
+	})
+	t.Run("RouterOwnsNotFound", func(t *testing.T) {
+		_, ts := newExternalMux(t)
+
+		code, _ := externalMuxGet(t, ts.URL+"/unknown", nil)
+		require.Equal(t, http.StatusNotFound, code)
+	})
+}

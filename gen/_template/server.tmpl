@@ -77,6 +77,9 @@ type Server struct {
 	{{- if $.Securities }}
 	sec SecurityHandler
 	{{- end }}
+	{{- if $.ExternalMuxEnabled }}
+	routes map[string]Route
+	{{- end }}
 	baseServer
 }
 
@@ -86,7 +89,7 @@ func NewServer(h Handler, {{- if $hasRawOps }}rh RawHandler,{{- end }}{{- if $.S
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
+	{{ if $.ExternalMuxEnabled }}srv := {{ else }}return {{ end }}&Server{
 		h: h,
 		{{- if $hasRawOps }}
 		rh: rh,
@@ -95,7 +98,10 @@ func NewServer(h Handler, {{- if $hasRawOps }}rh RawHandler,{{- end }}{{- if $.S
 		sec: sec,
 		{{- end }}
 		baseServer: s,
-	}, nil
+	}{{ if $.ExternalMuxEnabled }}
+	srv.routes = srv.buildRoutes()
+	return srv, nil
+	{{- else }}, nil{{ end }}
 }
 {{- end }}
 
