@@ -713,6 +713,60 @@ type Client[E any] interface {
 }
 ```
 
+## External router
+
+By default, `Server` routes requests with its own code-generated router.
+Enable the `server/external_mux` feature to mount each operation on a router you
+already use, such as `http.ServeMux`:
+
+```yaml
+generator:
+  features:
+    enable:
+      - "server/external_mux"
+```
+
+`Server.Routes()` returns the operations keyed by OpenAPI `operationId`. Each `Route`
+has a `Handler` that runs security, middleware, OpenTelemetry, decoding and
+validation, as `ServeHTTP` does:
+
+```go
+srv, err := api.NewServer(handler)
+if err != nil {
+	return err
+}
+mux := http.NewServeMux()
+for _, rt := range srv.Routes() {
+	mux.Handle(rt.Method()+" "+rt.MuxPattern(), rt.Handler)
+}
+```
+
+- `MuxPattern()` is the `http.ServeMux` pattern. Wildcard names are Go identifiers
+  (`{user-id}` becomes `{user_id}`, `{2fa}` becomes `{p2fa}`), and paths that end
+  with `/` end with `{$}`, so they do not match the whole subtree.
+- `PathPattern()` is still the path from the spec.
+- The handler reads path parameters with `(*http.Request).PathValue`, using the names
+  from `MuxPattern()`. It expects unescaped values, as `http.ServeMux` sets them.
+- The router owns the path prefix, 404 and 405 responses: the handler does not check them.
+- `ServeHTTP`, `FindRoute` and `FindPath` still work. The `Handler` of a route returned by
+  `FindPath` uses the arguments that `FindPath` parsed.
+
+To use a router that does not set `PathValue`, translate `MuxPattern()` to its syntax
+and copy its parameters into the request before you call the handler. For example, with gin:
+
+```go
+r.Handle(rt.Method(), "/users/:user_id/", func(c *gin.Context) {
+	for _, p := range c.Params {
+		c.Request.SetPathValue(p.Key, p.Value)
+	}
+	rt.Handler.ServeHTTP(c.Writer, c.Request)
+})
+```
+
+With the feature enabled, generation fails if an operation has no `operationId`, if a
+path parameter does not fill a whole path segment (`/files/{name}.{ext}`), or if two path
+parameters of one operation get the same wildcard name.
+
 # Links
 
 - [Getting started](https://ogen.dev/docs/intro)
